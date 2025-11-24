@@ -1,0 +1,231 @@
+{
+  "name": "codemap",
+  "displayName": "LLM Code Map",
+  "description": "Visualize code dependencies and structure with interactive graphs",
+  "version": "0.0.1",
+  "publisher": "codemap",
+  "engines": {
+    "vscode": "^1.99.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "views": {
+      "codemap": [
+        {
+          "id": "codemapView",
+          "name": "LLM Code Map",
+          "type": "webview",
+          "icon": "$(graph)",
+          "when": "true"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codemap",
+          "title": "LLM Code Map",
+          "icon": "$(graph)"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "codemap.refresh",
+        "title": "Refresh LLM Code Map",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "codemap.refresh",
+          "when": "view == codemapView",
+          "group": "navigation"
+        }
+      ]
+    },
+    "languageModelTools": [
+      {
+        "name": "codemap_analyze",
+        "tags": [
+          "code-analysis",
+          "visualization"
+        ],
+        "displayName": "LLM Code Map Analyzer",
+        "toolReferenceName": "codemap",
+        "modelDescription": "Visualizes code dependencies and structure as an interactive graph. CRITICAL: You MUST use the 'nodes' and 'edges' parameters to directly specify what to display. This is the ONLY reliable method. WORKFLOW: 1) Analyze the user's request to identify files, functions, classes mentioned, 2) Search the codebase to find these elements and their relationships, 3) Create 'nodes' array with ALL elements to show (files, functions, classes, methods), 4) Create 'edges' array with ALL relationships (file contains function/class, function calls function, class extends class, file imports from file, etc.). REQUIRED FORMAT: Node IDs: 'file:absolute/path/to/file.js' for files, 'function:absolute/path/to/file.js:functionName' for functions, 'class:absolute/path/to/file.js:ClassName' for classes. IMPORTANT: Edge 'source' and 'target' MUST be node IDs (strings) that exactly match 'nodes[*].id' (do NOT pass objects). Edge types: 'reference' for file contains function/class (parent-child), 'call' for function calls function, 'import' for file imports from file, 'extends' for class extends class, 'implements' for class implements interface. ALWAYS include 'reference' edges from files to their contained functions/classes. Example: For file 'server/src/services/roomsService.js' containing function 'listRooms', create nodes: [{id: 'file:server/src/services/roomsService.js', label: 'roomsService.js', type: 'file'}, {id: 'function:server/src/services/roomsService.js:listRooms', label: 'listRooms', type: 'function', filePath: 'server/src/services/roomsService.js'}], and edges: [{source: 'file:server/src/services/roomsService.js', target: 'function:server/src/services/roomsService.js:listRooms', type: 'reference', label: 'contains'}]. The tool displays the graph in the sidebar.",
+        "userDescription": "Analyze and visualize code dependencies and structure",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(graph)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "workspacePath": {
+              "type": "string",
+              "description": "The absolute path to the workspace or directory to analyze. If not specified, analyzes the current workspace."
+            },
+            "filePattern": {
+              "type": "string",
+              "description": "File pattern to include (e.g., '**/*.ts', '**/*.js'). Defaults to TypeScript and JavaScript files."
+            },
+            "depth": {
+              "type": "number",
+              "description": "Maximum depth of dependency analysis. Defaults to unlimited."
+            },
+            "targetFile": {
+              "type": "string",
+              "description": "Primary file to focus on. Use this when the user explicitly mentions a specific file. Can be a relative path or filename. If you've identified multiple related files through analysis, prefer using 'relatedFiles' array instead."
+            },
+            "relatedFiles": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "REQUIRED: List of related files you identified through code analysis. Before calling this tool, analyze the user's request and identify all relevant files (e.g., files that import/export from each other, files mentioned in the user's query, files in the same feature/module). Can include relative paths or filenames. These files and their dependencies will be included in the visualization. This is the primary way to focus the visualization on relevant code."
+            },
+            "relatedFunctions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Function name"
+                  },
+                  "filePath": {
+                    "type": "string",
+                    "description": "File path where the function is defined (optional, but recommended for accuracy)"
+                  }
+                },
+                "required": ["name"]
+              },
+              "description": "List of related functions you identified through code analysis. Before calling this tool, analyze the codebase to identify functions mentioned by the user or functions that are related to the files in 'relatedFiles'. These functions and their call relationships will be included in the visualization."
+            },
+            "relatedClasses": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Class name"
+                  },
+                  "filePath": {
+                    "type": "string",
+                    "description": "File path where the class is defined (optional, but recommended for accuracy)"
+                  }
+                },
+                "required": ["name"]
+              },
+              "description": "List of related classes you identified through code analysis. Before calling this tool, analyze the codebase to identify classes mentioned by the user or classes that are related to the files in 'relatedFiles'. These classes and their inheritance/implementation relationships will be included in the visualization."
+            },
+            "focusNodes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Specific node IDs to focus on. This is typically generated by LLM after analyzing the codebase. Format: 'file:path', 'function:path:name', 'class:path:name', etc."
+            },
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Unique node ID. Format: 'file:path' for files, 'function:path:name' for functions, 'class:path:name' for classes, 'method:path:className.methodName' for methods."
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "Display label for the node (e.g., filename, function name, class name)"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["file", "function", "class", "method", "interface", "type", "variable"],
+                    "description": "Type of the node"
+                  },
+                  "filePath": {
+                    "type": "string",
+                    "description": "File path where this node is located (required for all node types except file itself)"
+                  },
+                  "line": {
+                    "type": "number",
+                    "description": "Line number in the file (optional)"
+                  },
+                  "column": {
+                    "type": "number",
+                    "description": "Column number in the file (optional)"
+                  }
+                },
+                "required": ["id", "label", "type"]
+              },
+              "description": "REQUIRED: List of nodes to display in the graph. You MUST provide this along with 'edges'. Node IDs must use exact format: 'file:absolute/path' for files, 'function:absolute/path:name' for functions, 'class:absolute/path:name' for classes. The 'filePath' field should match the file path in the node ID. All node IDs referenced in 'edges' must exist in this array."
+            },
+            "edges": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "description": "Source node ID (must match a node ID in the 'nodes' array)"
+                  },
+                  "target": {
+                    "type": "string",
+                    "description": "Target node ID (must match a node ID in the 'nodes' array)"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["import", "export", "call", "extends", "implements", "reference"],
+                    "description": "Type of relationship: 'import' (file imports from file), 'export' (file exports to file), 'call' (function calls function), 'extends' (class extends class), 'implements' (class implements interface), 'reference' (file contains function/class - parent-child relationship)"
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "Optional label for the edge (e.g., imported name, function name being called)"
+                  }
+                },
+                "required": ["source", "target", "type"]
+              },
+              "description": "REQUIRED: List of edges (relationships) to display in the graph. You MUST provide this along with 'nodes'. 'source' and 'target' MUST be node IDs (strings) that exactly match node IDs in the 'nodes' array (do NOT pass objects). ALWAYS include 'reference' type edges from files to their contained functions/classes (e.g., file contains function). Edge types: 'reference' (file contains function/class - most common), 'call' (function calls function), 'import' (file imports from file), 'extends' (class extends class), 'implements' (class implements interface)."
+            }
+          }
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "format": "prettier --write \"src/**/*.{ts,json,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,json,md}\"",
+    "test": "node ./out/test/runTest.js"
+  },
+  "dependencies": {
+    "typescript": "^5.3.3",
+    "d3": "^7.8.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.99.0",
+    "@types/d3": "^7.4.3",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.1.3",
+    "prettier": "^3.2.5",
+    "typescript": "^5.3.3"
+  }
+}
+
